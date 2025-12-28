@@ -68,3 +68,9 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+## Events sidebar integration (custom)
+- Filters call `/api/events` with query params: `q, startDate, endDate, mode, level, tags, sort, bookmarked, archived, page, perPage`. The helper `buildApplyPayload` builds this payload.
+- Optional summary fetch: `/api/filters/summary` supplies `popularTags` and `categoryCounts`.
+- Header height: the sidebar reads the first `header`/`.navbar` element and sets `--header-height` on `document.documentElement` (fallback 64px). Ensure your layout renders a header before the sidebar mounts.
+- The sidebar is responsive: sticky on desktop and a slide-in drawer on mobile (triggered by the Filters button). Only one instance is mounted; the same container becomes a drawer on small screens.

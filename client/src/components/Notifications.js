@@ -1,142 +1,94 @@
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import EventCard from './EventCard';
 import '../Events.css';
 
-const typeIcons = {
-  deadline: 'bi-exclamation-triangle',
-  reminder: 'bi-clock',
-  info: 'bi-info-circle',
-  bookmark: 'bi-bookmark',
-};
-
-const NotificationSettings = ({ settings, onChange }) => (
-  <div className="p-4" style={{background:'#fff', borderRadius:'1.2rem', border:'1.5px solid #e5e7eb', minWidth:320}}>
-    <h3 style={{fontWeight:800, fontSize:'1.5rem', color:'#22223b', marginBottom:'1.2rem'}}>Notification Settings</h3>
-    <div className="form-check form-switch mb-3">
-      <input className="form-check-input" type="checkbox" checked={settings.email} onChange={()=>onChange('email')} id="emailSwitch" />
-      <label className="form-check-label" htmlFor="emailSwitch">Email Notifications</label>
-      <div className="text-muted" style={{fontSize:'0.98rem'}}>Receive notifications via email</div>
-    </div>
-    <div className="form-check form-switch mb-3">
-      <input className="form-check-input" type="checkbox" checked={settings.deadline} onChange={()=>onChange('deadline')} id="deadlineSwitch" />
-      <label className="form-check-label" htmlFor="deadlineSwitch">Event Deadline Alerts</label>
-      <div className="text-muted" style={{fontSize:'0.98rem'}}>Alert me 3 days before deadlines</div>
-    </div>
-    <div className="form-check form-switch mb-3">
-      <input className="form-check-input" type="checkbox" checked={settings.reminder} onChange={()=>onChange('reminder')} id="reminderSwitch" />
-      <label className="form-check-label" htmlFor="reminderSwitch">Personal Reminders</label>
-      <div className="text-muted" style={{fontSize:'0.98rem'}}>Reminders for my personal events</div>
-    </div>
-    <div className="form-check form-switch mb-1">
-      <input className="form-check-input" type="checkbox" checked={settings.push} onChange={()=>onChange('push')} id="pushSwitch" />
-      <label className="form-check-label" htmlFor="pushSwitch">Push Notifications</label>
-      <div className="text-muted" style={{fontSize:'0.98rem'}}>Browser push notifications</div>
-    </div>
-  </div>
-);
-
-
 const Notifications = () => {
-  // Notifications state
-  const [notifications, setNotifications] = useState([]);
-  const [tab, setTab] = useState('all');
-  const [settings, setSettings] = useState({
-    email: true,
-    deadline: true,
-    reminder: true,
-    push: false,
+  const [notifiedEvents, setNotifiedEvents] = useState(() => {
+    const data = localStorage.getItem('notify_event_items');
+    return data ? JSON.parse(data) : [];
   });
 
-  // Fetch notifications from backend
+  const refresh = () => {
+    const data = localStorage.getItem('notify_event_items');
+    setNotifiedEvents(data ? JSON.parse(data) : []);
+  };
+
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-  const token = localStorage.getItem('clockdin_token');
-        const res = await axios.get('/api/users/notifications', {
-          headers: { 'x-auth-token': token }
-        });
-        setNotifications(res.data);
-      } catch (err) {
-        setNotifications([]);
-      }
+    const onStorage = (e) => {
+      if (e.key === 'notify_event_items' || e.key === 'notify_event_ids') refresh();
     };
-    fetchNotifications();
+    const onCustom = () => refresh();
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('notify-events-changed', onCustom);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('notify-events-changed', onCustom);
+    };
   }, []);
 
+  const removeNotifiedLocal = (eventId) => {
+    const ids = JSON.parse(localStorage.getItem('notify_event_ids') || '[]').filter(id => id !== eventId);
+    const items = JSON.parse(localStorage.getItem('notify_event_items') || '[]').filter(ev => (ev._id || ev.id) !== eventId);
+    localStorage.setItem('notify_event_ids', JSON.stringify(ids));
+    localStorage.setItem('notify_event_items', JSON.stringify(items));
+    setNotifiedEvents(items);
+    window.dispatchEvent(new Event('notify-events-changed'));
+  };
 
-  // Tab filtering
-  const filtered = notifications.filter(n => {
-    if (tab === 'all') return true;
-    if (tab === 'unread') return !n.read;
-    if (tab === 'deadlines') return n.type === 'deadline';
-    if (tab === 'reminders') return n.type === 'reminder';
-    return true;
-  });
-
-  // Actions
-  const markAllRead = () => setNotifications(notifications.map(n => ({...n, read:true})));
-  const clearAll = () => setNotifications([]);
-  const markAsRead = id => setNotifications(notifications.map(n => n.id === id ? {...n, read:true} : n));
-  const deleteNotif = id => setNotifications(notifications.filter(n => n.id !== id));
-  const handleSettings = key => setSettings(s => ({...s, [key]:!s[key]}));
+  const handleUnsubscribe = async (ev) => {
+    const id = ev._id || ev.id;
+    removeNotifiedLocal(id);
+    const token = localStorage.getItem('clockdin_token');
+    if (!token) return;
+    try {
+      await fetch(`/api/users/notifications/subscribe/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-auth-token': token }
+      });
+    } catch (err) {
+      console.error('Failed to unsubscribe notification', err);
+    }
+  };
 
   return (
-    <div className="container-fluid mt-4">
-      <div className="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+    <div className="container mt-4" style={{maxWidth:'1200px'}}>
+      <div className="d-flex align-items-center justify-content-between mb-4">
         <div>
-          <h1 style={{fontWeight:900, fontSize:'2.7rem', color:'#22223b', marginBottom:0, letterSpacing:'-1px', display:'flex', alignItems:'center', gap:'0.7rem'}}>
-            <i className="bi bi-bell-fill" style={{color:'#3b5bfd', fontSize:'2.2rem', marginRight:'0.2rem'}}></i>
+          <h1 style={{fontWeight:900, fontSize:'2.4rem', color:'#22223b', marginBottom:4, letterSpacing:'-1px'}}>
             Notifications
-            <span className="badge bg-danger ms-2" style={{fontSize:'1.25rem', verticalAlign:'top', fontWeight:700, borderRadius:'1.2rem', padding:'0.4em 0.9em'}}>{notifications.filter(n=>!n.read).length}</span>
           </h1>
-          <div style={{color:'#64748b', fontSize:'1.18rem', marginTop:'0.2rem'}}>Stay updated with event deadlines and personal reminders</div>
+          <div style={{color:'#64748b', fontSize:'1.05rem'}}>Manage your "Notify Me" events here.</div>
         </div>
-        <div className="d-flex gap-2 align-items-center flex-wrap">
-          <button className="btn btn-outline-secondary d-flex align-items-center gap-2" onClick={()=>alert('Test notification!')}><i className="bi bi-bell"></i>Test Notifications</button>
-          <button className="btn btn-outline-success d-flex align-items-center gap-2" onClick={markAllRead}><i className="bi bi-check2-all"></i>Mark All Read</button>
-          <button className="btn btn-outline-danger d-flex align-items-center gap-2" onClick={clearAll}><i className="bi bi-trash"></i>Clear All</button>
-        </div>
+        <span className="badge bg-primary" style={{fontWeight:800, fontSize:'1rem'}}>{notifiedEvents.length}</span>
       </div>
-      <div className="d-flex gap-4 mt-4">
-        <div style={{flex:1}}>
-          <div className="d-flex gap-2 mb-3">
-            <button className={`btn ${tab==='all'?'btn-light border border-primary shadow-sm':'btn-light border'}`} onClick={()=>setTab('all')}><i className="bi bi-inbox me-1"></i>All ({notifications.length})</button>
-            <button className={`btn ${tab==='unread'?'btn-light border border-primary shadow-sm':'btn-light border'}`} onClick={()=>setTab('unread')}><i className="bi bi-envelope-open me-1"></i>Unread ({notifications.filter(n=>!n.read).length})</button>
-            <button className={`btn ${tab==='deadlines'?'btn-light border border-primary shadow-sm':'btn-light border'}`} onClick={()=>setTab('deadlines')}><i className="bi bi-exclamation-triangle me-1"></i>Deadlines</button>
-            <button className={`btn ${tab==='reminders'?'btn-light border border-primary shadow-sm':'btn-light border'}`} onClick={()=>setTab('reminders')}><i className="bi bi-clock me-1"></i>Reminders</button>
-          </div>
-          {filtered.length === 0 ? (
-            <div className="d-flex flex-column align-items-center justify-content-center" style={{background:'#fff', borderRadius:'1.2rem', minHeight:'220px', border:'1.5px solid #e5e7eb'}}>
-              <i className="bi bi-bell" style={{fontSize:'4.5rem', color:'#cbd5e1', marginBottom:'1rem'}}></i>
-              <div style={{fontWeight:800, fontSize:'1.5rem', color:'#22223b'}}>No notifications</div>
-            </div>
-          ) : (
-            filtered.map(n => (
-              <div key={n.id} className="d-flex align-items-start gap-3 mb-3 p-4" style={{background:'#fff', borderRadius:'1.2rem', borderLeft:`5px solid ${n.type==='deadline'?'#3b5bfd':'#fab005'}`, border:'1.5px solid #e5e7eb', boxShadow:'0 4px 16px rgba(80,80,120,0.07)'}}>
-                <div style={{fontSize:'2.3rem', color:n.type==='deadline'?'#fab005':'#3b5bfd', marginTop:'0.2rem'}}>
-                  <i className={`bi ${typeIcons[n.type] || 'bi-bell'}`}></i>
-                </div>
-                <div className="flex-grow-1">
-                  <div style={{fontWeight:800, fontSize:'1.18rem', color:'#22223b', display:'flex', alignItems:'center', gap:'0.5rem'}}>
-                    {n.title} {!n.read && <span style={{color:'#3b5bfd', fontSize:'1.3rem'}}>•</span>}
-                  </div>
-                  <div style={{color:'#495057', fontSize:'1.12rem', whiteSpace:'pre-line', marginTop:'0.2rem'}}>{n.message}</div>
-                  <div className="d-flex gap-2 align-items-center mt-2" style={{fontSize:'1.01rem', color:'#868e96'}}>
-                    <span><i className="bi bi-clock me-1"></i>{n.date ? new Date(n.date).toLocaleString() : ''}</span>
-                    {n.tag && <span className="badge bg-light border text-dark" style={{fontWeight:700, textTransform:'capitalize', fontSize:'1rem'}}>{n.tag}</span>}
-                  </div>
-                </div>
-                <div className="d-flex flex-column gap-2 align-items-end">
-                  {!n.read && <button className="btn btn-link text-success p-0" title="Mark as read" onClick={()=>markAsRead(n.id)}><i className="bi bi-check2-circle" style={{fontSize:'1.5rem'}}></i></button>}
-                  <button className="btn btn-link text-danger p-0" title="Delete" onClick={()=>deleteNotif(n.id)}><i className="bi bi-trash" style={{fontSize:'1.5rem'}}></i></button>
+
+      {notifiedEvents.length === 0 ? (
+        <div className="d-flex align-items-center gap-3" style={{border:'1px dashed #cbd5e1', borderRadius:'1rem', padding:'1.2rem', background:'#fff'}}>
+          <i className="bi bi-bell" style={{fontSize:'1.8rem', color:'#94a3b8'}}></i>
+          <div style={{color:'#64748b', fontWeight:600}}>No notification events yet. Tap "Notify Me" on any event to track it.</div>
+        </div>
+      ) : (
+        <div className="row g-3">
+          {notifiedEvents.map((ev, idx) => {
+            const key = ev._id || ev.id || idx;
+            return (
+              <div className="col-md-6" key={key}>
+                <div className="p-3" style={{border:'1px solid #e5e7eb', borderRadius:'1rem', background:'#fff', height:'100%', display:'flex', flexDirection:'column', gap:'0.75rem'}}>
+                  <EventCard event={ev} showBookmark={false} showActions={false} />
+                  <button
+                    className="btn btn-outline-danger"
+                    style={{fontWeight:700, borderRadius:'0.8rem'}}
+                    onClick={() => handleUnsubscribe(ev)}
+                  >
+                    <i className="bi bi-x-circle me-1"></i>Unsubscribe
+                  </button>
                 </div>
               </div>
-            ))
-          )}
+            );
+          })}
         </div>
-        <NotificationSettings settings={settings} onChange={handleSettings} />
-      </div>
+      )}
     </div>
   );
 };

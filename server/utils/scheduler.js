@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 const Reminder = require('../models/reminder.model');
 const Event = require('../models/event.model');
+const NotificationSubscription = require('../models/notificationSubscription.model');
 const axios = require('axios');
 
 const timers = new Map();
@@ -141,9 +142,46 @@ function scheduleEventNotifications() {
   console.log('Scheduled daily job for event deadline notifications.');
 }
 
+async function sendSubscriptionNotifications() {
+  try {
+    const now = new Date();
+    const targetStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 0, 0, 0);
+    const targetEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 23, 59, 59, 999);
+
+    const subs = await NotificationSubscription.find({ sent: false })
+      .populate('event')
+      .populate('user');
+
+    for (const sub of subs) {
+      const deadline = sub.event?.deadline ? new Date(sub.event.deadline) : null;
+      if (!deadline) continue;
+      if (deadline >= targetStart && deadline <= targetEnd) {
+        const to = sub.user.email;
+        const subject = `Reminder: ${sub.event.title} deadline in 2 days`;
+        const text = `Hi ${sub.user.name || ''},\n\nYou subscribed to be notified about "${sub.event.title}". The deadline is ${deadline.toDateString()}.\n\nGood luck!\nClockdin Team`;
+        await transporter.sendMail({ from: process.env.EMAIL_USER, to, subject, text });
+        sub.sent = true;
+        await sub.save();
+        console.log('Sent subscription notification', { sub: sub._id.toString(), event: sub.event.title, to });
+      }
+    }
+  } catch (err) {
+    console.error('Error sending subscription notifications:', err.message);
+  }
+}
+
+function scheduleSubscriptionNotifications() {
+  const ONE_MINUTE = 60 * 1000;
+  // Run once immediately to catch any already-due items
+  sendSubscriptionNotifications();
+  setInterval(sendSubscriptionNotifications, ONE_MINUTE);
+  console.log('Scheduled 1-minute interval for subscription deadline notifications.');
+}
+
 // Call this function to start the scheduler
 scheduleBookmarkedNotifications();
 scheduleEventNotifications();
+scheduleSubscriptionNotifications();
 
 module.exports = {
   sendReminder,
@@ -153,4 +191,6 @@ module.exports = {
   scheduleBookmarkedNotifications,
   sendEventNotifications,
   scheduleEventNotifications,
+  sendSubscriptionNotifications,
+  scheduleSubscriptionNotifications,
 };

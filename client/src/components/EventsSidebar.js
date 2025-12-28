@@ -21,15 +21,14 @@ const EventsSidebar = ({ events = [], onSelectCategory = () => {}, onOpenEvent =
     .filter(e => e.eventDate && new Date(e.eventDate) >= now)
     .sort((a,b) => new Date(a.eventDate) - new Date(b.eventDate));
 
-  const byType = {};
-  Object.keys(EVENTS_MAP).forEach(k => byType[k] = []);
-  upcoming.forEach(ev => {
-    const key = (ev.type || '').toLowerCase();
-    if (key && byType[key]) byType[key].push(ev);
-    else byType['all'].push(ev);
-    // ensure also in 'all'
-    if (!byType['all'].includes(ev)) byType['all'].push(ev);
-  });
+  const byType = {
+    all: upcoming, // All events go into 'all' category
+    hackathon: upcoming.filter(ev => ev.type?.toLowerCase() === 'hackathon'),
+    internship: upcoming.filter(ev => ev.type?.toLowerCase() === 'internship'),
+    workshop: upcoming.filter(ev => ev.type?.toLowerCase() === 'workshop'),
+    competition: upcoming.filter(ev => ev.type?.toLowerCase() === 'competition'),
+    seminar: upcoming.filter(ev => ev.type?.toLowerCase() === 'seminar')
+  };
 
   // helper to render a short list (max 6)
   const renderList = (list) => (
@@ -62,35 +61,44 @@ const EventsSidebar = ({ events = [], onSelectCategory = () => {}, onOpenEvent =
           ))}
         </div>
 
-        <div className="sidebar-section">
-          <div className="sidebar-section-title">Next — All</div>
-          {renderList(byType['all'])}
-        </div>
+        {activeCategory === 'all' ? (
+          <>
+            <div className="sidebar-section">
+              <div className="sidebar-section-title">Next — All</div>
+              {renderList(byType['all'])}
+            </div>
 
-        <div className="sidebar-section">
-          <div className="sidebar-section-title">Hackathons</div>
-          {renderList(byType['hackathon'])}
-        </div>
+            <div className="sidebar-section">
+              <div className="sidebar-section-title">Hackathons</div>
+              {renderList(byType['hackathon'])}
+            </div>
 
-        <div className="sidebar-section">
-          <div className="sidebar-section-title">Internships</div>
-          {renderList(byType['internship'])}
-        </div>
+            <div className="sidebar-section">
+              <div className="sidebar-section-title">Internships</div>
+              {renderList(byType['internship'])}
+            </div>
 
-        <div className="sidebar-section">
-          <div className="sidebar-section-title">Workshops</div>
-          {renderList(byType['workshop'])}
-        </div>
+            <div className="sidebar-section">
+              <div className="sidebar-section-title">Workshops</div>
+              {renderList(byType['workshop'])}
+            </div>
 
-        <div className="sidebar-section">
-          <div className="sidebar-section-title">Competitions</div>
-          {renderList(byType['competition'])}
-        </div>
+            <div className="sidebar-section">
+              <div className="sidebar-section-title">Competitions</div>
+              {renderList(byType['competition'])}
+            </div>
 
-        <div className="sidebar-section">
-          <div className="sidebar-section-title">Seminars</div>
-          {renderList(byType['seminar'])}
-        </div>
+            <div className="sidebar-section">
+              <div className="sidebar-section-title">Seminars</div>
+              {renderList(byType['seminar'])}
+            </div>
+          </>
+        ) : (
+          <div className="sidebar-section">
+            <div className="sidebar-section-title">{EVENTS_MAP[activeCategory]}</div>
+            {renderList(byType[activeCategory])}
+          </div>
+        )}
 
         <div style={{marginTop:12, textAlign:'center'}}>
           <a href="#all-events" onClick={(e)=>{e.preventDefault(); onSelectCategory('all');}} className="btn btn-sm btn-outline-primary">View all upcoming</a>

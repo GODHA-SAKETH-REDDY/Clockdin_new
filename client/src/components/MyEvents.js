@@ -26,6 +26,34 @@ const reminders = [
   '1 day before',
 ];
 
+const formatDateTime = (dateStr, timeStr) => {
+  if (!dateStr) return { dateLabel: 'Date TBD', timeLabel: timeStr || '' };
+
+  const hasIsoTime = dateStr.includes('T');
+  const dateOnly = hasIsoTime ? dateStr.split('T')[0] : dateStr;
+  const isoTimePart = hasIsoTime ? dateStr.split('T')[1]?.replace('Z', '').trim() : '';
+  const timeCandidate = timeStr || isoTimePart || '';
+
+  let dateLabel = dateOnly;
+  let timeLabel = timeCandidate;
+
+  // Build a Date from dateOnly + timeCandidate when possible
+  const buildDate = () => {
+    if (dateOnly && timeCandidate) return new Date(`${dateOnly}T${timeCandidate}`);
+    return new Date(dateOnly);
+  };
+
+  const dt = buildDate();
+  if (!isNaN(dt.getTime())) {
+    dateLabel = dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    timeLabel = timeCandidate
+      ? dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+      : '';
+  }
+
+  return { dateLabel, timeLabel };
+};
+
 const MyEvents = () => {
   const [events, setEvents] = useState([]);
   // Fetch events from backend on mount
@@ -223,7 +251,14 @@ const MyEvents = () => {
                   </div>
                   <div className="mb-2 d-flex align-items-center gap-2" style={{color:'#64748b',fontSize:'1.08rem'}}>
                     <i className="bi bi-clock-history"></i>
-                    <span>{ev.date} {ev.time && <span>at {ev.time}</span>}</span>
+                    {(() => {
+                      const { dateLabel, timeLabel } = formatDateTime(ev.date, ev.time);
+                      return (
+                        <span>
+                          {dateLabel}{timeLabel ? ` at ${timeLabel}` : ''}
+                        </span>
+                      );
+                    })()}
                   </div>
                   {ev.location && (
                     <div className="mb-2 d-flex align-items-center gap-2" style={{color:'#64748b',fontSize:'1.08rem'}}>

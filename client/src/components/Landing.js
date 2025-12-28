@@ -1,15 +1,58 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 const API = '/api/users';
+
+const initialRegisterState = { name: '', email: '', password: '', college: '', confirm: '', agree: false };
+const initialLoginState = { email: '', password: '' };
 
 const Landing = ({ onSignIn }) => {
   const [view, setView] = useState('home'); // home | login | register
-  const [login, setLogin] = useState({ email: '', password: '' });
-  const [register, setRegister] = useState({ name: '', email: '', password: '', college: '', confirm: '', agree: false });
+  const [login, setLogin] = useState(initialLoginState);
+  const [register, setRegister] = useState(initialRegisterState);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegConfirm, setShowRegConfirm] = useState(false);
+
+  const resetRegister = useCallback(() => {
+    setRegister(initialRegisterState);
+    setShowRegPassword(false);
+    setShowRegConfirm(false);
+    setError('');
+  }, []);
+
+  const resetLoginState = useCallback(() => {
+    setLogin({ ...initialLoginState });
+    setRememberMe(false);
+    setShowPassword(false);
+  }, []);
+
+  useEffect(() => {
+    if (view !== 'register') {
+      resetRegister();
+    }
+  }, [view, resetRegister]);
+
+  useEffect(() => {
+    if (view === 'login') {
+      resetLoginState();
+    }
+  }, [view, resetLoginState]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      resetLoginState();
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [resetLoginState]);
+
+  useEffect(() => {
+    return () => {
+      resetLoginState();
+    };
+  }, [resetLoginState]);
 
   const handleLogin = async e => {
     e.preventDefault();
@@ -62,6 +105,12 @@ const Landing = ({ onSignIn }) => {
     } finally {
       setLoading(false);
     }
+  };
+  const handleChange = (e) => {
+    setRegister({
+      ...register,
+      [e.target.name]: e.target.value,
+    });
   };
 
   // Home view: hero, features, two cards, stats
@@ -184,23 +233,47 @@ const Landing = ({ onSignIn }) => {
                 <label className="form-label">Email</label>
                 <div className="input-group">
                   <span className="input-group-text"><i className="bi bi-envelope"></i></span>
-                  <input type="email" className="form-control" value={login.email} onChange={e=>setLogin(l=>({...l,email:e.target.value}))} required placeholder="Enter your email" />
+                  <input
+                    type="email"
+                    className="form-control"
+                    value={login.email}
+                    onChange={e=>setLogin(l=>({...l,email:e.target.value}))}
+                    required
+                    placeholder="Enter your email"
+                    autoComplete="off"
+                  />
                 </div>
               </div>
               <div className="mb-3">
                 <label className="form-label">Password</label>
                 <div className="input-group">
                   <span className="input-group-text"><i className="bi bi-lock"></i></span>
-                  <input type={showPassword ? 'text' : 'password'} className="form-control" value={login.password} onChange={e=>setLogin(l=>({...l,password:e.target.value}))} required placeholder="Enter your password" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className="form-control"
+                    value={login.password}
+                    onChange={e=>setLogin(l=>({...l,password:e.target.value}))}
+                    required
+                    placeholder="Enter your password"
+                    autoComplete="new-password"
+                  />
                   <span className="input-group-text" style={{cursor:'pointer'}} onClick={()=>setShowPassword(v=>!v)}><i className={`bi ${showPassword?'bi-eye-slash':'bi-eye'}`}></i></span>
                 </div>
               </div>
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" id="rememberMe" />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id="rememberMe"
+                    checked={rememberMe}
+                    onChange={e=>setRememberMe(e.target.checked)}
+                  />
                   <label className="form-check-label" htmlFor="rememberMe">Remember me</label>
                 </div>
-                <a href="#" style={{color:'#6366f1',fontWeight:500,fontSize:'0.98rem'}}>Forgot password?</a>
+                <button type="button" className="btn btn-link p-0" style={{color:'#6366f1',fontWeight:500,fontSize:'0.98rem'}}>
+                  Forgot password?
+                </button>
               </div>
               {error && <div className="alert alert-danger py-1">{error}</div>}
               <button className="btn w-100 py-2" style={{background:'#6366f1',color:'#fff',fontWeight:700,borderRadius:'0.8rem',fontSize:'1.1rem'}} disabled={loading} type="submit">{loading?'Signing In...':'Sign In'}</button>
@@ -212,7 +285,9 @@ const Landing = ({ onSignIn }) => {
             </div>
             <button className="btn btn-outline-primary w-100 py-2 mb-2" style={{fontWeight:700,borderRadius:'0.8rem',fontSize:'1.1rem'}} onClick={()=>{setView('register');setError('')}}>Create Account</button>
             <div className="text-center mt-2">
-              <a href="#" style={{color:'#64748b',fontSize:'0.98rem'}} onClick={e=>{e.preventDefault();setView('home');setError('')}}>&larr; Back to Home</a>
+              <button type="button" className="btn btn-link p-0" style={{color:'#64748b',fontSize:'0.98rem'}} onClick={()=>{setView('home');setError('')}}>
+                &larr; Back to Home
+              </button>
             </div>
           </div>
         </div>
@@ -239,29 +314,29 @@ const Landing = ({ onSignIn }) => {
                 <label className="form-label">Full Name</label>
                 <div className="input-group">
                   <span className="input-group-text"><i className="bi bi-person"></i></span>
-                  <input type="text" className="form-control" value={register.name} onChange={e=>setRegister(r=>({...r,name:e.target.value}))} required placeholder="Enter your full name" />
+                  <input type="text" className="form-control" value={register.name} name="name" onChange={handleChange} required placeholder="Enter your full name"  autoComplete='off'/>
                 </div>
               </div>
               <div className="mb-3">
                 <label className="form-label">Email</label>
                 <div className="input-group">
                   <span className="input-group-text"><i className="bi bi-envelope"></i></span>
-                  <input type="email" className="form-control" value={register.email} onChange={e=>setRegister(r=>({...r,email:e.target.value}))} required placeholder="Enter your email" />
+                  <input type="email" className="form-control" value={register.email} name='email' onChange={handleChange} required placeholder="Enter your email" autoComplete='off' />
                 </div>
               </div>
               <div className="mb-3">
                 <label className="form-label">University/College</label>
                 <div className="input-group">
                   <span className="input-group-text"><i className="bi bi-mortarboard"></i></span>
-                  <input type="text" className="form-control" value={register.college} onChange={e=>setRegister(r=>({...r,college:e.target.value}))} placeholder="Enter your university" />
+                  <input type="text" className="form-control" value={register.college} name='college' onChange={handleChange} placeholder="Enter your university" autoComplete='off' />
                 </div>
               </div>
               <div className="mb-3">
                 <label className="form-label">Password</label>
                 <div className="input-group">
                   <span className="input-group-text"><i className="bi bi-lock"></i></span>
-                  <input type={showRegPassword ? 'text' : 'password'} className="form-control" value={register.password} onChange={e=>setRegister(r=>({...r,password:e.target.value}))} required placeholder="Create a strong password" />
-                  <span className="input-group-text" style={{cursor:'pointer'}} onClick={()=>setShowRegPassword(v=>!v)}><i className={`bi ${showRegPassword?'bi-eye-slash':'bi-eye'}`}></i></span>
+                  <input type={showRegPassword ? 'text' : 'password'} className="form-control" value={register.password} name="password" onChange={handleChange} required placeholder="Create a strong password" autoComplete='off'/>
+                  <span className="input-group-text" style={{cursor:'pointer'}}  onClick={()=>setShowRegPassword(v=>!v)}><i className={`bi ${showRegPassword?'bi-eye-slash':'bi-eye'}`}></i></span>
                 </div>
                 <div style={{fontSize:'0.95rem',color:'#64748b',marginTop:2}}>Must be 8+ characters with uppercase, lowercase, and number</div>
               </div>
@@ -269,14 +344,14 @@ const Landing = ({ onSignIn }) => {
                 <label className="form-label">Confirm Password</label>
                 <div className="input-group">
                   <span className="input-group-text"><i className="bi bi-lock"></i></span>
-                  <input type={showRegConfirm ? 'text' : 'password'} className="form-control" value={register.confirm} onChange={e=>setRegister(r=>({...r,confirm:e.target.value}))} required placeholder="Confirm your password" />
-                  <span className="input-group-text" style={{cursor:'pointer'}} onClick={()=>setShowRegConfirm(v=>!v)}><i className={`bi ${showRegConfirm?'bi-eye-slash':'bi-eye'}`}></i></span>
+                  <input type={showRegConfirm ? 'text' : 'password'} className="form-control" value={register.confirm} name="confirm" onChange={handleChange} required placeholder="Confirm your password" autoComplete='off'/>
+                  <span className="input-group-text" style={{cursor:'pointer'}} name onClick={()=>setShowRegConfirm(v=>!v)}><i className={`bi ${showRegConfirm?'bi-eye-slash':'bi-eye'}`}></i></span>
                 </div>
               </div>
               <div className="form-check mb-3">
-                <input className="form-check-input" type="checkbox" id="agree" checked={register.agree} onChange={e=>setRegister(r=>({...r,agree:e.target.checked}))} />
+                <input className="form-check-input" type="checkbox" id="agree" checked={register.agree} onChange={handleChange} />
                 <label className="form-check-label" htmlFor="agree">
-                  I agree to the <a href="#" style={{color:'#6366f1'}}>Terms of Service</a> and <a href="#" style={{color:'#6366f1'}}>Privacy Policy</a>
+                  I agree to the <a href="/terms-of-service" style={{color:'#6366f1'}}>Terms of Service</a> and <a href="/privacy-policy" style={{color:'#6366f1'}}>Privacy Policy</a>
                 </label>
               </div>
               {error && <div className="alert alert-danger py-1">{error}</div>}
@@ -289,7 +364,9 @@ const Landing = ({ onSignIn }) => {
             </div>
             <button className="btn btn-outline-primary w-100 py-2 mb-2" style={{fontWeight:700,borderRadius:'0.8rem',fontSize:'1.1rem'}} onClick={()=>{setView('login');setError('')}}>Sign In</button>
             <div className="text-center mt-2">
-              <a href="#" style={{color:'#64748b',fontSize:'0.98rem'}} onClick={e=>{e.preventDefault();setView('home');setError('')}}>&larr; Back to Home</a>
+              <button type="button" className="btn btn-link p-0" style={{color:'#64748b',fontSize:'0.98rem'}} onClick={()=>{setView('home');setError('')}}>
+                &larr; Back to Home
+              </button>
             </div>
           </div>
         </div>

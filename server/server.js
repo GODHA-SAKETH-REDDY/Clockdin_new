@@ -755,6 +755,27 @@ const addHardcodedEventsToDatabase = async () => {
     usersToNotify: [],
     notificationSent: false
   },
+  {
+    title: 'Bookmarked Eventtt',
+    deadline: new Date('2025-12-13'),
+    description: 'Educational seminar 10 for Indian students on trending topics in technology and science.',
+    usersToNotify: [],
+    notificationSent: false
+  },
+  {
+    title: 'sample event',
+    deadline: new Date('2025-12-13'),
+    description: 'Educational seminar 10 for Indian students on trending topics in technology and science.',
+    usersToNotify: [],
+    notificationSent: false
+  },
+  {
+    title: 'sample event 2',
+    deadline: new Date('2025-12-18'),
+    description: 'Educational seminar 10 for Indian students on trending topics in technology and science.',
+    usersToNotify: [],
+    notificationSent: false
+  },
 ];
 
   for (const eventData of hardcodedEvents) {

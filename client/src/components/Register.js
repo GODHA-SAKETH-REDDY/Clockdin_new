@@ -1,15 +1,42 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
-const Register = () => {
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    university: '',
-    password: '',
-    confirmPassword: ''
-  });
+const initialFormState = {
+  fullName: '',
+  email: '',
+  university: '',
+  password: '',
+  confirmPassword: ''
+};
 
+const Register = () => {
+  const [formData, setFormData] = useState(initialFormState);
+  const resetForm = useCallback(() => setFormData({ ...initialFormState }), []);
+
+  useEffect(() => {
+    resetForm();
+    return () => resetForm();
+  }, [resetForm]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleReset = () => resetForm();
+    const handlePageShow = (event) => {
+      if (event.persisted) {
+        resetForm();
+      }
+    };
+    window.addEventListener('beforeunload', handleReset);
+    window.addEventListener('pagehide', handleReset);
+    window.addEventListener('popstate', handleReset);
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      window.removeEventListener('beforeunload', handleReset);
+      window.removeEventListener('pagehide', handleReset);
+      window.removeEventListener('popstate', handleReset);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [resetForm]);
   const { fullName, email, university, password, confirmPassword } = formData;
 
   const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -47,15 +74,16 @@ const Register = () => {
   return (
     <div>
       <h2>Create Account</h2>
-      <form onSubmit={e => onSubmit(e)}>
+      <form onSubmit={e => onSubmit(e)} autoComplete="off">
         <div>
           <input
             type="text"
-            placeholder="Full Name"
+            placeholder="Full Names"
             name="fullName"
             value={fullName}
             onChange={e => onChange(e)}
             required
+            autoComplete='name'
           />
         </div>
         <div>
@@ -66,6 +94,7 @@ const Register = () => {
             value={email}
             onChange={e => onChange(e)}
             required
+            autoComplete='email'
           />
         </div>
         <div>
@@ -75,6 +104,7 @@ const Register = () => {
             name="university"
             value={university}
             onChange={e => onChange(e)}
+            autoComplete='organization'
           />
         </div>
         <div>
@@ -86,6 +116,7 @@ const Register = () => {
             onChange={e => onChange(e)}
             minLength="6"
             required
+            autoComplete='new-password'
           />
         </div>
         <div>
@@ -97,6 +128,7 @@ const Register = () => {
             onChange={e => onChange(e)}
             minLength="6"
             required
+            autoComplete='new-password'
           />
         </div>
         <input type="submit" value="Register" />

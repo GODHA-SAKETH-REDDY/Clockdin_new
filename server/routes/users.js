@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
 const Event = require('../models/event.model');
 const Reminder = require('../models/reminder.model');
+const NotificationSubscription = require('../models/notificationSubscription.model');
 const router = express.Router();
 
 // Auth middleware
@@ -72,6 +73,37 @@ router.delete('/bookmarks/:eventId', auth, async (req, res) => {
   user.bookmarks = user.bookmarks.filter(id => id.toString() !== eventId);
   await user.save();
   res.json(user.bookmarks);
+});
+
+// Notifications subscribe/unsubscribe
+router.get('/notifications/subscriptions', auth, async (req, res) => {
+  const subs = await NotificationSubscription.find({ user: req.user.id }).select('event sent');
+  res.json(subs);
+});
+
+router.post('/notifications/subscribe', auth, async (req, res) => {
+  const { eventId } = req.body;
+  if (!eventId) return res.status(400).json({ msg: 'Event ID required' });
+  try {
+    await NotificationSubscription.findOneAndUpdate(
+      { user: req.user.id, event: eventId },
+      { $set: { sent: false } },
+      { upsert: true, new: true }
+    );
+    res.json({ subscribed: true, eventId });
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  }
+});
+
+router.delete('/notifications/subscribe/:eventId', auth, async (req, res) => {
+  const { eventId } = req.params;
+  try {
+    await NotificationSubscription.deleteOne({ user: req.user.id, event: eventId });
+    res.json({ subscribed: false, eventId });
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  }
 });
 
 // My Events: add, get, delete
